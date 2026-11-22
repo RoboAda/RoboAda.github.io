@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RoboAda: Adapting Frozen Robot Policies at Test Time to Physics They Cannot See</title>
+<meta name="description" content="RoboAda keeps a robot policy frozen and corrects its commands by inferring, at test time, how the robot now turns commands into motion.">
+<meta property="og:title" content="RoboAda: Adapting Frozen Robot Policies at Test Time to Physics They Cannot See">
+<meta property="og:description" content="Test-time adaptation as inferring the robot's body from its own motion. No reward, no gradient step, no data from the changed robot.">
+<meta property="og:image" content="https://roboada.github.io/assets/img/teaser.jpg">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23163C69'/%3E%3Cpath d='M7 23 C 11 12, 17 10, 25 9' stroke='%23E8EFF7' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='25' cy='9' r='3' fill='%23E8EFF7'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..700&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-text">
+      <h1>RoboAda</h1>
+      <p class="title">Adapting Frozen Robot Policies at Test Time to Physics They Cannot See</p>
+      <p class="authors">
+        <span>Yunbei Zhang<sup>1</sup></span>
+        <span>Zijian Jin<sup>2</sup></span>
+        <span>Shuaicheng Niu<sup>3</sup></span>
+        <span>Baian Chen<sup>4</sup></span>
+        <span>Weirui Ye<sup>4</sup></span>
+        <span>Jihun Hamm<sup>1</sup></span>
+        <span>Yilun Du<sup>5</sup></span>
+      </p>
+      <p class="affil">
+        <span><sup>1</sup>Tulane University</span>
+        <span><sup>2</sup>New York University</span>
+        <span><sup>3</sup>Nanyang Technological University</span>
+        <span><sup>4</sup>MIT</span>
+        <span><sup>5</sup>Harvard University</span>
+      </p>
+      <nav class="links" aria-label="Project links">
+        <a class="link-main" href="https://github.com/RoboAda/RoboAda">Code</a>
+        <span class="link-off" aria-disabled="true">Paper, coming soon</span>
+        <a href="#rollouts">Rollouts</a>
+        <a href="#cite">BibTeX</a>
+      </nav>
+    </div>
+
+    <figure class="lab" aria-labelledby="lab-cap">
+      <canvas id="lab" width="960" height="430" role="img" aria-label="Two toy arms receive the same plans. The left one executes them as they are, the right one through RoboAda."></canvas>
+      <div class="lab-controls">
+        <span class="lab-label" id="change-label">Hidden change</span>
+        <div class="seg" role="radiogroup" aria-labelledby="change-label">
+          <button role="radio" data-change="load" aria-checked="true">Heavier load</button>
+          <button role="radio" data-change="motor" aria-checked="false">Weaker motor</button>
+          <button role="radio" data-change="lag" aria-checked="false">Lagging controller</button>
+          <button role="radio" data-change="none" aria-checked="false">Nothing</button>
+        </div>
+        <button class="replay" id="replay">Replay</button>
+      </div>
+      <figcaption id="lab-cap">A toy arm whose physics changed with no visible sign. Both arms receive the same plans from the same frozen policy; the right one sends them through RoboAda, whose posterior over bodies fills in below after every chunk. An illustration of the idea; the results further down come from the paper.</figcaption>
+    </figure>
+  </div>
+</header>
+
+<main>
+  <section class="intro">
+    <div class="col">
+      <h2>The plan is right. The body is not.</h2>
+      <p>A full mug looks like an empty one, a block that looks wooden may be made of iron, and a worn joint looks like a healthy one. A robot policy plans under the physics of its training data, so on a changed body its plan is often still right while the commands that carry it out fall short.</p>
+      <p>RoboAda keeps the policy and its plan unchanged and corrects the commands, by inferring after every action chunk how this robot now turns commands into motion. It needs no reward, no gradient step and no data from the changed robot, and it wraps world action models and vision-language-action models alike.</p>
+    </div>
+    <figure class="strip">
+      <div class="strip-row">
+        <img src="assets/img/real_start.jpg" alt="The robot holds a cream cheese box above the table" loading="lazy">
+        <img src="assets/img/real_fail.jpg" alt="Executed as planned, the box falls short of the basket" loading="lazy">
+        <img src="assets/img/real_c.jpg" alt="With RoboAda, the box lands in the basket" loading="lazy">
+      </div>
+      <figcaption>A hidden 35 N load on the hand. Left to right: the start, the frozen policy's plan executed as it is, and the same plan executed through RoboAda. Photorealistic renderings of the simulated episodes.</figcaption>
+    </figure>
+  </section>
+
+  <section class="how">
+    <div class="col">
+      <h2>How it works</h2>
+      <ol class="steps">
+        <li>
+          <h3>Hindsight labels</h3>
+          <p>An inverse-dynamics model of the unchanged robot reads the proprioception and returns, for every executed step, the command the unchanged robot would have needed for the motion that happened. On a changed robot these labels differ from the commands that were sent, at no extra cost.</p>
+        </li>
+        <li>
+          <h3>A posterior over bodies</h3>
+          <p>Per action axis, three hypotheses explain the labels: the nominal body, an affine body and a state-dependent body. Each is fitted in closed form and weighted by how well it predicted every new label before seeing it.</p>
+        </li>
+        <li>
+          <h3>Act under the posterior</h3>
+          <p>Each planned step is sent as the command that minimizes the expected tracking error under the weighted hypotheses. Uncertain hypotheses correct less, and when nothing has changed the nominal body keeps the weight and the plan goes through almost unchanged.</p>
+        </li>
+      </ol>
+    </div>
+    <figure class="wide">
+      <img src="assets/img/teaser.jpg" alt="Figure 1 of the paper: the frozen policy fails under a hidden load; RoboAda turns proprioception into hindsight labels, weighs body hypotheses and acts under the posterior; per-policy success under eleven physical shifts." loading="lazy">
+      <figcaption>Figure 1 of the paper. The posterior is sketched for a command gain of 0.5.</figcaption>
+    </figure>
+  </section>
+
+  <section class="results">
+    <div class="col">
+      <h2>Results</h2>
+      <p>Success rate on LIBERO under eleven physical shifts: command gain, a gain drop, stiffness, latency, constant and per-episode offsets, a downward force, a payload while grasping and two weakened joints. Every policy runs frozen and with RoboAda on the same episodes.</p>
+    </div>
+    <div class="results-grid">
+      <figure class="chart" id="chart" aria-label="Success rate per policy, frozen and with RoboAda"></figure>
+      <dl class="facts">
+        <div><dt>Average over the five policies</dt><dd>27.8% → <b>62.9%</b></dd></div>
+        <div><dt>Objects 100× heavier than they look</dt><dd>59.0% → <b>72.4%</b></dd></div>
+        <div><dt>Against seven test-time adaptation methods, Cosmos Policy</dt><dd>best 52.3%, RoboAda <b>69.6%</b></dd></div>
+        <div><dt>Physical shifts on top of LIBERO-Plus, LIBERO-PRO, LIBERO-MAX</dt><dd>21.1 → <b>52.0</b>, 17.6 → <b>40.0</b>, 13.5 → <b>35.6</b></dd></div>
+        <div><dt>Bimanual RoboTwin 2.0, joint-space commands</dt><dd>24.9% → <b>78.8%</b></dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="rollouts" id="rollouts">
+    <div class="col">
+      <h2>Rollouts</h2>
+      <p>Each clip shows the frozen policy on the left and the same policy with RoboAda on the right, from the same initial state under the same hidden change.</p>
+    </div>
+    <div class="grid" id="rollout-grid"></div>
+  </section>
+
+  <section class="unseen">
+    <div class="col">
+      <h2>What the camera misses</h2>
+      <p>The same recorded commands, replayed on the normal robot and on a changed one. The faint arm and the white path are the normal robot; the solid arm and the orange path, the changed robot. Nothing in the first frame tells them apart.</p>
+    </div>
+    <div class="tiles" id="shift-grid"></div>
+  </section>
+
+  <section class="reveal">
+    <div class="col">
+      <h2>The posterior identifies the change</h2>
+      <p>Under a command gain of 0.3, 0.5 or 0.7, the fitted gain reaches the true value within four to six chunks. A payload or heavier objects appear as a downward offset that sets in only once the object is held.</p>
+    </div>
+    <figure class="wide">
+      <img src="assets/img/identify.jpg" alt="Fitted command gain and vertical offset per chunk for several hidden changes" loading="lazy">
+    </figure>
+    <div class="col">
+      <p>A world action model's own imagination registers the change too: under half the command gain, the frozen robot reaches half of the motion the model imagines, and RoboAda recovers most of it within four chunks.</p>
+    </div>
+    <figure class="wide">
+      <img src="assets/img/imagination.jpg" alt="Imagined, observed and difference frames; reached over imagined motion per chunk" loading="lazy">
+    </figure>
+  </section>
+
+  <section class="code">
+    <div class="col">
+      <h2>Code</h2>
+      <p>The release is numpy only. A simulator-free quickstart runs in a few seconds, and your own policy plugs in through a Python function, an HTTP endpoint or an openpi server.</p>
+<pre><code>git clone https://github.com/RoboAda/RoboAda.git
+cd RoboAda &amp;&amp; pip install -e .
+python examples/quickstart.py</code></pre>
+      <p><a class="link-main ink" href="https://github.com/RoboAda/RoboAda">github.com/RoboAda/RoboAda</a></p>
+    </div>
+  </section>
+
+  <section class="cite" id="cite">
+    <div class="col">
+      <h2>Citation</h2>
+<pre id="bibtex"><code>@misc{zhang2026roboada,
+  title  = {RoboAda: Adapting Frozen Robot Policies at Test Time to Physics They Cannot See},
+  author = {Zhang, Yunbei and Jin, Zijian and Niu, Shuaicheng and Chen, Baian and Ye, Weirui and Hamm, Jihun and Du, Yilun},
+  year   = {2026}
+}</code></pre>
+      <button class="copy" id="copy-bib">Copy BibTeX</button>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>RoboAda, 2026. Simulation results on LIBERO and RoboTwin 2.0.</p>
+</footer>
+
+<script src="assets/sim.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
