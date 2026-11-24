@@ -27,7 +27,6 @@
     <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5Z" fill="currentColor"/></symbol>
     <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8.5 5.5v13M15.5 5.5v13"/></symbol>
     <symbol id="i-code" viewBox="0 0 24 24"><path d="M8.5 7 3.5 12l5 5M15.5 7l5 5-5 5"/></symbol>
-    <symbol id="i-abs" viewBox="0 0 24 24"><path d="M12.5 4H6a1.5 1.5 0 0 0-1.5 1.5V18A1.5 1.5 0 0 0 6 19.5h12.5A1.5 1.5 0 0 0 20 18v-6.5"/><path d="M15 4h5v5M20 4l-8.5 8.5"/></symbol>
     <symbol id="i-paper" viewBox="0 0 24 24"><path d="M6.5 3h7.5l4 4v14h-11.5Z"/><path d="M14 3v4h4M9.5 12h5M9.5 15.5h5"/></symbol>
     <symbol id="i-film" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="1.5"/><path d="M10 9.2v5.6l4.6-2.8Z" fill="currentColor"/></symbol>
     <symbol id="i-quote" viewBox="0 0 24 24"><path d="M9.5 7H6a1 1 0 0 0-1 1v4h4.5v-4M19 7h-3.5a1 1 0 0 0-1 1v4H19v-4M9.5 12c0 3-1.5 4.5-4 5M19 12c0 3-1.5 4.5-4 5"/></symbol>
@@ -54,7 +53,8 @@
     <span><sup>5</sup>Harvard</span>
   </p>
   <nav class="links" aria-label="Project links">
-    <a class="pill main" href="https://arxiv.org/pdf/2611.30209"><svg class="ic"><use href="#i-abs"/></svg>arXiv</a>
+    <a class="pill main" href="assets/RoboAda.pdf"><svg class="ic"><use href="#i-paper"/></svg>Paper</a>
+    <span class="pill off" aria-disabled="true"><svg class="ic"><use href="#i-hourglass"/></svg>arXiv, coming soon</span>
     <a class="pill main" href="https://github.com/RoboAda/RoboAda"><svg class="ic"><use href="#i-code"/></svg>Code</a>
     <a class="pill" href="#rollouts"><svg class="ic"><use href="#i-film"/></svg>Rollouts</a>
     <a class="pill" href="#cite"><svg class="ic"><use href="#i-quote"/></svg>BibTeX</a>
@@ -192,11 +192,10 @@ ada.observe(executed, proprio_steps)          # after every chunk</code></pre>
 
   <section class="text cite" id="cite">
     <h2>Citation</h2>
-<pre id="bibtex"><code>@article{zhang2026roboada,
-  title   = {RoboAda: Adapting Frozen Robot Policies at Test Time to Physics They Cannot See},
-  author  = {Zhang, Yunbei and Jin, Zijian and Niu, Shuaicheng and Chen, Baian and Ye, Weirui and Hamm, Jihun and Du, Yilun},
-  journal = {arXiv preprint arXiv:2611.30209},
-  year    = {2026}
+<pre id="bibtex"><code>@misc{zhang2026roboada,
+  title  = {RoboAda: Adapting Frozen Robot Policies at Test Time to Physics They Cannot See},
+  author = {Zhang, Yunbei and Jin, Zijian and Niu, Shuaicheng and Chen, Baian and Ye, Weirui and Hamm, Jihun and Du, Yilun},
+  year   = {2026}
 }</code></pre>
     <button class="btn" id="copy-bib">Copy BibTeX</button>
   </section>
